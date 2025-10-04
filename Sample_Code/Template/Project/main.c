@@ -64,7 +64,7 @@ BREATHING_LED_MANAGER_T breathing_led =
 };
 
 
-static const unsigned int k_gamma22_0_1023_128[BREATH_STEPS] = 
+static code unsigned int k_gamma22_0_1023_128[BREATH_STEPS] = 
 {
       0,   0,   0,   0,   1,   1,   1,   2,   2,   3,   4,   5,   6,   7,   8,   9,
      11,  12,  14,  16,  18,  20,  22,  24,  26,  29,  31,  34,  37,  40,  43,  46,
@@ -76,7 +76,7 @@ static const unsigned int k_gamma22_0_1023_128[BREATH_STEPS] =
     776, 791, 807, 822, 838, 854, 870, 887, 903, 920, 936, 953, 971, 988,1005,1023
 };
 
-static const unsigned int s_breath_duty_ticks[BREATH_STEPS] = 
+static code unsigned int s_breath_duty_ticks[BREATH_STEPS] = 
 {
 	0,    0,    0,    0,   2,   2,   2,   4,   4,   5,   7,   9,  11,  13,  15,  16,
 	20,   22,   26,  29,  33,  37,  40,  44,  48,  53,  57,  62,  68,  73,  79,  84,
