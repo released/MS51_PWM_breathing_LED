@@ -27,8 +27,15 @@ volatile struct flag_32bit flag_PROJ_CTL;
 #define FLAG_PROJ_REVERSE7                      (flag_PROJ_CTL.bit7)
 
 /*_____ D E F I N I T I O N S ______________________________________________*/
+#define UDIV_ROUND_NEAREST(a,b)                 ( ((unsigned long)(a) + ((unsigned long)(b)/2u)) / (unsigned long)(b) )
 
-volatile uint32_t counter_tick = 0;
+// #define USE_P15_PWM0_CH5
+#define USE_P12_PWM0_CH0
+
+#define USE_FLASH_TBL
+// #define USE_RAM_TBL
+
+volatile unsigned long counter_tick = 0;
 
 #define BREATH_STEPS         				    (128u) 
 #define BREATH_GAMMA_SCALE   			        (1023u)
@@ -76,6 +83,7 @@ static code unsigned int k_gamma22_0_1023_128[BREATH_STEPS] =
     776, 791, 807, 822, 838, 854, 870, 887, 903, 920, 936, 953, 971, 988,1005,1023
 };
 
+#if defined (USE_FLASH_TBL)
 static code unsigned int s_breath_duty_ticks[BREATH_STEPS] = 
 {
 	0,    0,    0,    0,   2,   2,   2,   4,   4,   5,   7,   9,  11,  13,  15,  16,
@@ -87,25 +95,24 @@ static code unsigned int s_breath_duty_ticks[BREATH_STEPS] =
 	1013,1035,1059,1083,1108,1132,1158,1182,1207,1233,1258,1286,1312,1339,1367,1394,
 	1422,1449,1478,1506,1535,1564,1594,1625,1654,1685,1715,1746,1779,1810,1841,1874
 };
+#endif
+
+#if defined (USE_RAM_TBL)
+static unsigned int s_breath_duty_ticks[BREATH_STEPS] = {0};
+#endif
 
 /*_____ M A C R O S ________________________________________________________*/
 #define SYS_CLOCK 								(24000000ul)
 
-#define UDIV_ROUND_NEAREST(a,b)                 ( ((unsigned long)(a) + ((unsigned long)(b)/2u)) / (unsigned long)(b) )
-
-// #define USE_P15_PWM0_CH5
-#define USE_P12_PWM0_CH0
-
-
 /*_____ F U N C T I O N S __________________________________________________*/
 
 
-static uint32_t get_tick(void)
+static unsigned long get_tick(void)
 {
 	return (counter_tick);
 }
 
-static void set_tick(uint32_t t)
+static void set_tick(unsigned long t)
 {
 	counter_tick = t;
 }
@@ -175,8 +182,8 @@ void send_UARTASCII(uint16_t Temp)
 void send_UARTHex(uint16_t u16Temp)
 {
     uint8_t print_buf[16];
-    uint32_t i = 15;
-    uint32_t temp;
+    unsigned long i = 15;
+    unsigned long temp;
 
     *(print_buf + i) = '\0';
     do
@@ -399,15 +406,25 @@ void breath_1ms_IRQ(void)
 	}    
 }
 
-// to generate s_breath_duty_ticks , base on PWM_PERIOD_TICKS - 1u
+/*
+	generate s_breath_duty_ticks , base on PWM_PERIOD_TICKS - 1u
+	by below two method
+	USE_FLASH_TBL : generate table and copy into s_breath_duty_ticks (flash)
+	USE_RAM_TBL : generate table and put in s_breath_duty_ticks (ram) 
+*/
 void breath_generate_duty_tbl(void)
 {
 	unsigned int i = 0;
 	unsigned int duty = 0;
+	unsigned int period = PWM_PERIOD_TICKS - 1u;
+	unsigned long num = 0;
 
-	for ( i = 0 ; i < 128 ; i++)
+	#if defined (USE_FLASH_TBL)
+	for ( i = 0 ; i < BREATH_STEPS ; i++)
 	{
-		duty = ( k_gamma22_0_1023_128[i] * (PWM_PERIOD_TICKS - 1u) + 511 ) / 1023 ;
+        num = (unsigned long) k_gamma22_0_1023_128[i] * period;
+		duty = (unsigned int) UDIV_ROUND_NEAREST(num,1023);
+		// duty = ( k_gamma22_0_1023_128[i] * (period) + 511 ) / 1023 ;
         
 		printf("%4d,",duty);
         if ((i+1)%16 == 0)
@@ -416,6 +433,22 @@ void breath_generate_duty_tbl(void)
         }  	
 	}
     printf("\r\n\r\n");	
+	#endif
+
+	#if defined (USE_RAM_TBL)
+    for (i = 0; i < BREATH_STEPS; i++) 
+	{
+        /* duty = round( tbl[i] * period / 1023 ) */
+        num = (unsigned long) k_gamma22_0_1023_128[i] * period;
+		duty = (unsigned int) UDIV_ROUND_NEAREST(num,1023);
+        if (duty > period) 
+			duty = period;
+
+        s_breath_duty_ticks[i] = duty;
+    }
+
+
+	#endif
 }
 
 
@@ -631,7 +664,7 @@ void main (void)
 	GPIO_Init();
 	TIMER0_Init();
 
-	// breath_generate_duty_tbl();	// to generate tbl : s_breath_duty_ticks
+	breath_generate_duty_tbl();	// to generate tbl : s_breath_duty_ticks
 	breath_init(1);
 		
     while(1)
