@@ -273,6 +273,7 @@ void breath_init(unsigned char enable_led_gpio)
 
 		// breathing LED init
 		breath100_set_active_high(0);	// LOW ACTIVE
+		// breath100_set_active_high(1);	// HIGH ACTIVE
 
 		/*
 			fomula : bpm = 60000 / full_ms
@@ -307,8 +308,10 @@ void breath_init(unsigned char enable_led_gpio)
 		PWM0L = LOBYTE(s_breath_duty_ticks[0]);
         #endif
         #if defined (USE_P15_PWM0_CH5) 
+		ENABLE_SFR_PAGE1;
 		PWM5H = HIBYTE(s_breath_duty_ticks[0]);
 		PWM5L = LOBYTE(s_breath_duty_ticks[0]);
+		ENABLE_SFR_PAGE0;
         #endif
 
 		set_PWMCON0_LOAD;
@@ -398,8 +401,11 @@ void breath_1ms_IRQ(void)
             #endif
             
             #if defined (USE_P15_PWM0_CH5) 
+			ENABLE_SFR_PAGE1;
 			PWM5H = HIBYTE(duty);
-			PWM5L = LOBYTE(duty);        
+			PWM5L = LOBYTE(duty);    
+			ENABLE_SFR_PAGE0;
+
             #endif
 			set_PWMCON0_LOAD;
 		}
